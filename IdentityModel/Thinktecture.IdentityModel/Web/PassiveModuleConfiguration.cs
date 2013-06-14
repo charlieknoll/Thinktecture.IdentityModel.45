@@ -56,8 +56,8 @@ namespace Thinktecture.IdentityModel.Web
                 delegate(object sender, SessionSecurityTokenReceivedEventArgs e)
                 {
                     var token = e.SessionToken;
-                    
-                    var duration = token.ValidTo.Subtract(token.ValidFrom);
+
+                    var duration = sam.CookieHandler.PersistentSessionLifetime ?? TimeSpan.FromHours(10); //Force duration to be loaded from PersistentSessionLifetime
                     if (duration <= TimeSpan.Zero) return;
 
                     var diff = token.ValidTo.Add(sam.FederationConfiguration.IdentityConfiguration.MaxClockSkew).Subtract(DateTime.UtcNow);
@@ -65,11 +65,10 @@ namespace Thinktecture.IdentityModel.Web
 
                     var halfWay = duration.Add(sam.FederationConfiguration.IdentityConfiguration.MaxClockSkew).TotalMinutes / 2;
                     var timeLeft = diff.TotalMinutes;
-                    if (timeLeft <= halfWay)
+                    if (timeLeft <= halfWay || timeLeft > duration.TotalMinutes) //resets ValidTo if PersistentSessionLifetime is shorter than default value)
                     {
                         // set duration not from original token, but from current app configuration
                         var handler = sam.FederationConfiguration.IdentityConfiguration.SecurityTokenHandlers[typeof(SessionSecurityToken)] as SessionSecurityTokenHandler;
-                        duration = handler.TokenLifetime;
 
                         e.ReissueCookie = true;
                         e.SessionToken =
